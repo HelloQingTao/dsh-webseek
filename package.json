@@ -1,0 +1,63 @@
+{
+  "name": "dsh-webseek",
+  "version": "0.1.0",
+  "description": "Embeds chat.deepseek.com in the DSH desktop sidebar, imports web conversations as real DSH sessions, and hands a summarized hand-off into a brand-new DSH session.",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "deepseek",
+    "webchat",
+    "sidebar",
+    "harness-plugin",
+    "plugin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloQingTao/dsh-webseek.git"
+  },
+  "homepage": "https://github.com/HelloQingTao/dsh-webseek#readme",
+  "bugs": {
+    "url": "https://github.com/HelloQingTao/dsh-webseek/issues"
+  },
+  "author": "HelloQingTao",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.0-rc.2 <0.3.0"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "docs/images"
+  ]
+}
