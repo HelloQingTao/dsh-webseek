@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildImportEvents, validateImportBody } from '../lib/index.js'
-import { validateHandoffBody, handoffTranscript, HANDOFF_TEMPLATES } from '../lib/index.js'
+import os from 'node:os'
+import { join } from 'node:path'
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
+import { buildImportEvents, validateImportBody, setStateDir, stateDir } from '../lib/index.js'
+import { validateHandoffBody, handoffTranscript, HANDOFF_TEMPLATES, guestProxyMode } from '../lib/index.js'
 
 const U = (text) => ({ role: 'user', text })
 const A = (text) => ({ role: 'assistant', text })
@@ -60,4 +63,24 @@ test('hand-off templates: summary asks the model to summarize first, not start w
   assert.ok(text.includes('总结完成后等我确认，不要直接开工'))
   assert.ok(HANDOFF_TEMPLATES.implement('t', 'U: x').includes('按结论实现'))
   assert.ok(HANDOFF_TEMPLATES.plan('t', 'U: x').includes('分步计划'))
+})
+
+test('guestProxyMode: defaults to direct, honours explicit system, survives junk', () => {
+  const prev = stateDir()
+  const dir = mkdtempSync(join(os.tmpdir(), 'webseek-test-'))
+  setStateDir(dir)
+  try {
+    // no config file at all
+    assert.equal(guestProxyMode(), 'direct')
+    // explicit system
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ guestProxy: 'system' }))
+    assert.equal(guestProxyMode(), 'system')
+    // junk values fall back to direct
+    writeFileSync(join(dir, 'config.json'), '{guestProxy: broken json')
+    assert.equal(guestProxyMode(), 'direct')
+    writeFileSync(join(dir, 'config.json'), JSON.stringify({ guestProxy: 'surprise' }))
+    assert.equal(guestProxyMode(), 'direct')
+  } finally {
+    setStateDir(prev)
+  }
 })
