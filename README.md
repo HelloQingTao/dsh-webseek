@@ -30,6 +30,8 @@ Restart the desktop app (⌘Q, then reopen) or the web instance.
 ## Notes & limits
 
 - Import and hand-off run **inside the embedded page** (same-origin fetch with the real cookies); the plugin never stores your DeepSeek token anywhere else — the login snapshot lives in `~/.dsh/dsh-webseek/session.json`.
+- **Local direct corridor**: if your machine routes all traffic through a proxy whose egress is blocked by chat.deepseek.com (403), the desktop panel loads `http://127.0.0.1:37890` instead — a local reverse proxy to the real origin that reaches it directly. Disable it with `~/.dsh/dsh-webseek/config.json` → `{"corridor":false}`.
+- WeChat QR sign-in does not work through the corridor (WeChat validates the redirect domain); use phone + SMS code or password sign-in.
 - DeepSeek's API returns the latest 100 conversations per page; older ones are not listed.
 - Conversations are imported read-only: what you say next happens in DSH, not back on the web page.
 - Requires DSH `>=0.2.0-rc.2 <0.3.0` and Node `>=22`.
@@ -66,6 +68,8 @@ dsh plugin --profile web add dsh-webseek       # 可选，降级模式
 ## 说明与限制
 
 - 导入与接力都在**内嵌页面里**发请求（同源 fetch 带真实 cookie）；插件不会把你的 DeepSeek 凭据存到别处——登录快照只落在 `~/.dsh/dsh-webseek/session.json`。
+- **本地直连走廊**：若本机全部流量走代理且代理出口被 chat.deepseek.com 拦截（403），桌面面板会改走 `http://127.0.0.1:37890`——一个直连真实站点的本地反向代理。在 `~/.dsh/dsh-webseek/config.json` 写 `{"corridor":false}` 可关闭。
+- 走廊下微信扫码登录不可用（微信校验回调域名）；请用手机验证码或密码登录。
 - DeepSeek 接口每次返回最新 100 个会话，更早的不会列出。
 - 导入是只读的：后续对话发生在 DSH 里，不会回写网页。
 - 需要 DSH `>=0.2.0-rc.2 <0.3.0`，Node `>=22`。

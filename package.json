@@ -55,6 +55,7 @@
   "files": [
     "lib/index.js",
     "lib/client.js",
+    "lib/corridor.js",
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
