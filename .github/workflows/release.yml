@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch: # manual re-run; a tag whose version is already published still fails
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for npm trusted publishing (no stored secret)
+
+jobs:
+  release:
+    runs-on: ubuntu-latest # must be a GitHub-hosted runner; self-hosted lacks OIDC
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24' # npm 11.x, required for trusted publishing
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - name: The tag and package.json must agree
+        run: |
+          declared="v$(node -p "require('./package.json').version")"
+          if [ "$declared" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json ($declared)"
+            exit 1
+          fi
+      - name: Test (offline, no deps)
+        run: node --test test/*.test.js
+      - run: npm publish # no --provenance; trusted publishing adds it
