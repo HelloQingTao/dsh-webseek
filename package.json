@@ -1,12 +1,13 @@
 {
   "name": "dsh-webseek",
-  "version": "0.1.0",
-  "description": "Embeds chat.deepseek.com in the DSH desktop sidebar, imports web conversations as real DSH sessions, and hands a summarized hand-off into a brand-new DSH session.",
+  "version": "0.2.0",
+  "description": "Imports a public DeepSeek share link as a real DSH session: one icon in the left sidebar, a dialog with the link and the target workspace, and a cold session with the same title.",
   "keywords": [
     "dsh",
     "deepseek-harness",
     "deepseek",
-    "webchat",
+    "share",
+    "import",
     "sidebar",
     "harness-plugin",
     "plugin"
@@ -38,6 +39,9 @@
     "./client": {
       "default": "./lib/client.js"
     },
+    "./share": {
+      "default": "./lib/share.js"
+    },
     "./package.json": "./package.json"
   },
   "dsh": {
@@ -47,18 +51,18 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-client-ui-conversation",
-        "@deepseek-ai/dsh-client-ui-sidebar-right"
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-locale"
       ]
     }
   },
   "files": [
     "lib/index.js",
     "lib/client.js",
-    "lib/corridor.js",
+    "lib/share.js",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE",
-    "docs/images"
+    "LICENSE"
   ]
 }

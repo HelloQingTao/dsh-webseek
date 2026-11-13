@@ -1,75 +1,52 @@
 # dsh-webseek
 
-Embed the real chat.deepseek.com web app inside DeepSeek Harness (DSH), import web conversations as real DSH sessions, and hand a web conversation off into a brand-new DSH session.
+把 **DeepSeek 网页版的分享链接**变成 DSH 里一个真实的会话。
 
-English | [中文](#中文)
+在 DSH 网页版点「分享」会得到一个公开链接（`https://chat.deepseek.com/share/<id>`）。本插件在左侧栏「工作区」标题那一行放一个导入图标，点开后填两样东西——分享链接、目标工作区——就会得到一个同名的新会话，内容是那份分享的完整对话，可以直接接着聊。
 
-## Features
+## 用法
 
-- **Embedded web panel** — a "Web DeepSeek" tab in DSH's right sidebar renders the real chat.deepseek.com page through the desktop shell's browser guest channel (not an iframe; the site forbids framing). Log in once inside the panel; the login snapshot is saved and replayed automatically on the next launch.
-- **History import** — pull your DeepSeek conversation list (latest 100), select any of them, and import into a chosen DSH workspace as **real sessions**: each message becomes a proper turn in the session log, the tree shows them after a page reload, and they are ordinary sessions — open, continue, search, archive like any other.
-- **Hand-off** — turn one web conversation into a brand-new DSH session with the transcript seeded as the opening prompt. The session's own model summarizes (background / goal / decisions / open items / next steps) before any work starts. Three templates: summarize, implement, plan. The new session opens automatically when the UI service is available.
-- **Web profile degraded mode** — the plugin also installs on plain `dsh web`; import/hand-off need the embedded page, so those sections show a desktop-only hint instead of failing.
+1. 左侧栏「工作区」标题右侧的**导入**图标（折叠成 56px 导轨时，图标落在齿轮上方那行插件图标里）；
+2. 粘贴分享链接（`https://chat.deepseek.com/share/…` 或直接是分享 id）；
+3. 选目标工作区 → **导入**；
+4. 左栏立刻出现同名会话；弹框里点「打开会话」直接跳过去（也可在左栏点那一行）。
 
-## Install
+导入的会话是「冷会话」：标题取网页上的标题，正文按网页上看到的主线回放（用户轮次 + 模型回答，模型的思考过程以 `[思考]` 段落保留在回答前面）。同一份分享重复导入不会重复建会话。
 
-```bash
-dsh plugin --profile desktop add dsh-webseek   # npm name once published
-dsh plugin --profile web add dsh-webseek       # optional, degraded mode
-```
+## 它做了什么
 
-Restart the desktop app (⌘Q, then reopen) or the web instance.
+- **取数**：宿主进程直连 `https://chat.deepseek.com/api/v0/share/content?share_id=<id>`。分享是公开的，**不需要登录**；请求带浏览器 UA，因为边缘节点对裸客户端会回自己的错误页而不是 JSON。
+- **只取主线**：分享出来的消息是一棵**树**（重新生成的回答是兄弟节点）。网页上显示的是每个节点的第一个子节点，导入也只走这条主线，废弃分支不会混进来。
+- **写会话**：把对话写成 DSH 的会话日志（`session-<uuid>`），挂到目标工作区，并预热投影缓存，让左栏立刻能显示它。
 
-## Use
+## 不做什么
 
-1. Open a session, click **Web DeepSeek** in the right sidebar.
-2. Log in to chat.deepseek.com inside the panel (once).
-3. **Import web history**: fetch the list → check conversations → pick a workspace → Import. Reload the page to see the new sessions in the tree.
-4. **Hand off**: click *Hand off* on a conversation row; a new session opens with the transcript and a summary-first instruction.
+- 不再内嵌网页：早先版本在右栏挂一个 `<webview>` 直接开 chat.deepseek.com，那条路走不通——本机流量走系统代理而代理出口被 CloudFront 挡（403），只能靠本地反代绕开，而反代把页面源变成 `127.0.0.1`，微信扫码一类的第三方登录随即失效（redirect_uri 域名对不上）。分享链接不需要这些，一行 API 就够了。
+- 不调用模型：导入只搬运网页上已有的内容，不做任何总结或续写。
 
-## Notes & limits
+## 已知限制
 
-- Import and hand-off run **inside the embedded page** (same-origin fetch with the real cookies); the plugin never stores your DeepSeek token anywhere else — the login snapshot lives in `~/.dsh/dsh-webseek/session.json`.
-- **Local direct corridor**: if your machine routes all traffic through a proxy whose egress is blocked by chat.deepseek.com (403), the desktop panel loads `http://127.0.0.1:37890` instead — a local reverse proxy to the real origin that reaches it directly. Disable it with `~/.dsh/dsh-webseek/config.json` → `{"corridor":false}`.
-- WeChat QR sign-in does not work through the corridor (WeChat validates the redirect domain); use phone + SMS code or password sign-in.
-- DeepSeek's API returns the latest 100 conversations per page; older ones are not listed.
-- Conversations are imported read-only: what you say next happens in DSH, not back on the web page.
-- Requires DSH `>=0.2.0-rc.2 <0.3.0` and Node `>=22`.
+- **导入的会话在当前 ACP 后端下不能就地续聊**：ACP（codebuddy-code 这类）只认自己创建过的会话，给一个外来历史的会话发消息会被后端拒绝（`ACP_BACKEND_NEW_SESSION_REQUIRED`）。原生模型后端（OpenAI 兼容那类）没有这个限制——历史会作为上下文发出去。想要的話，可以再加一个「接力」：新建一个会话，把导入的整段对话作为第一条消息发进去，后端就归它管了。
 
----
 
-# 中文
+- `api/v0/share/content` 是网页版的内部接口，DeepSeek 改版即可能失效；失败时插件会给出对应提示。
+- 分享标题可能就是网页默认的「Shared Conversation」——插件照搬网页标题。
+- 导入的会话会立刻出现在左栏（插件会让客户端重拉一次会话列表）；万一没出现，刷新一下页面即可。
 
-把真正的 chat.deepseek.com 网页嵌进 DeepSeek Harness（DSH），把网页对话导入为真正的 DSH 会话，或把一段网页对话接力成一个全新的 DSH 会话。
+## 界面
 
-## 功能
+弹框完全用 DSH 的设计令牌（`--dsw-*`）画：面板、输入框壳、菜单、按钮、遮罩的圆角/描边/底色/阴影都取自宿主的 token，**深浅色主题与皮肤插件（dream-skin）自动跟随**，没有一处硬编码颜色。工作区下拉是自绘的菜单（原生 `<select>` 的浮层由系统绘制，没法跟主题），行为与宿主菜单一致：点击外部关闭、Esc 先关菜单、选中项带勾。
 
-- **内嵌网页面板** — DSH 右侧栏新增「网页 DeepSeek」标签页，通过桌面壳的 browser guest 通道渲染真正的 chat.deepseek.com（不是 iframe，站点本身禁止被嵌）。在面板里登录一次，登录快照会自动保存并在下次启动时回放。
-- **历史导入** — 拉取 DeepSeek 会话列表（最新 100 条），勾选任意几条导入到指定 DSH 工作区，成为**真正的会话**：每条消息都写入会话日志的正确轮次，刷新页面后会话树可见，之后和普通会话一样打开、续聊、检索、归档。
-- **总结接力** — 把一段网页对话变成全新的 DSH 会话：完整记录作为开场消息注入，由会话模型先总结（背景 / 目标 / 关键决策 / 未完成事项 / 下一步），确认后再开工。三种模板：总结接力 / 按结论实现 / 制定计划。UI 服务可用时新会话自动打开。
-- **web 降级** — 插件也装在纯 `dsh web` 实例上；导入/接力依赖内嵌网页，这两块会显示「需要桌面版」提示而不是报错。
+弹框底部有一行页脚：项目 GitHub 链接、反馈 Issue 的入口、当前版本号，以及**检查更新**——点一下会向 npm 查询最新发布版本，显示「已是最新」或「有新版本 vX.Y.Z」。查询由宿主半直连 `registry.npmjs.org`（不走系统代理）。
 
-## 安装
+## 开发
 
 ```bash
-dsh plugin --profile desktop add dsh-webseek   # 发布后为 npm 包名
-dsh plugin --profile web add dsh-webseek       # 可选，降级模式
+node --test test/*.test.js   # 纯函数与宿主契约的离线单测
 ```
 
-桌面端 ⌘Q 完全退出后重开；web 实例重启生效。
+- `lib/share.js`：分享 id 校验、主线树、片段映射（纯函数，可单测）
+- `lib/index.js`：宿主半，`/api/dsh-webseek/*` 路由与写会话
+- `lib/client.js`：客户端半，左栏图标与导入弹框
 
-## 使用
-
-1. 打开任意会话，右侧栏点 **网页 DeepSeek**。
-2. 在面板内登录 chat.deepseek.com（一次）。
-3. **导入网页历史**：拉取列表 → 勾选会话 → 选工作区 → 导入。刷新页面后会话树可见。
-4. **接力**：点会话行的「接力」，新会话自动打开并带着完整记录与总结指令。
-
-## 说明与限制
-
-- 导入与接力都在**内嵌页面里**发请求（同源 fetch 带真实 cookie）；插件不会把你的 DeepSeek 凭据存到别处——登录快照只落在 `~/.dsh/dsh-webseek/session.json`。
-- **本地直连走廊**：若本机全部流量走代理且代理出口被 chat.deepseek.com 拦截（403），桌面面板会改走 `http://127.0.0.1:37890`——一个直连真实站点的本地反向代理。在 `~/.dsh/dsh-webseek/config.json` 写 `{"corridor":false}` 可关闭。
-- 走廊下微信扫码登录不可用（微信校验回调域名）；请用手机验证码或密码登录。
-- DeepSeek 接口每次返回最新 100 个会话，更早的不会列出。
-- 导入是只读的：后续对话发生在 DSH 里，不会回写网页。
-- 需要 DSH `>=0.2.0-rc.2 <0.3.0`，Node `>=22`。
+MIT
