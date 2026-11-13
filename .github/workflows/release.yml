@@ -28,4 +28,19 @@ jobs:
           fi
       - name: Test (offline, no deps)
         run: node --test test/*.test.js
-      - run: npm publish # no --provenance; trusted publishing adds it
+      - name: Check if this version is already on npm
+        id: exists
+        run: |
+          name=$(node -p "require('./package.json').name")
+          ver=$(node -p "require('./package.json').version")
+          if npm view "$name@$ver" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish to npm
+        if: steps.exists.outputs.published == 'false'
+        run: npm publish # no --provenance; trusted publishing adds it
+      - name: Already published — skip
+        if: steps.exists.outputs.published == 'true'
+        run: echo "$(node -p "require('./package.json').name")@$(node -p "require('./package.json').version") already on npm; skipping publish."
